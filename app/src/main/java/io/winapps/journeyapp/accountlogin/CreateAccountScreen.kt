@@ -18,12 +18,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import io.winapps.journeyapp.AppStateViewModel
 import io.winapps.journeyapp.ui.theme.NexaScript
+import io.winapps.journeyapp.viewmodels.PasswordViewModel
+import io.winapps.journeyapp.viewmodels.UsernameViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CreateAccountScreen(appState: AppStateViewModel) {
+fun CreateAccountScreen(appState: AppStateViewModel, usernameViewModel: UsernameViewModel = viewModel(), passwordViewModel: PasswordViewModel = viewModel()) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
