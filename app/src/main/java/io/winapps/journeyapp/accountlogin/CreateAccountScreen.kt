@@ -13,33 +13,33 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.winapps.journeyapp.AppStateViewModel
+import io.winapps.journeyapp.repository.ApiRepository
 import io.winapps.journeyapp.ui.theme.NexaScript
-import io.winapps.journeyapp.viewmodels.PasswordViewModel
-import io.winapps.journeyapp.viewmodels.UsernameViewModel
+import io.winapps.journeyapp.viewmodels.AccountViewModel
+import io.winapps.journeyapp.viewmodels.AccountViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CreateAccountScreen(appState: AppStateViewModel, usernameViewModel: UsernameViewModel = viewModel(), passwordViewModel: PasswordViewModel = viewModel()) {
-    var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
-    var isLoginVisible by remember { mutableStateOf(false) } // Toggle between login and create
+fun CreateAccountScreen(appState: AppStateViewModel) {
+    val apiRepository = ApiRepository()
+    val accountViewModel: AccountViewModel = viewModel(
+        factory = AccountViewModelFactory(apiRepository)
+    )
+    val configuration = LocalConfiguration.current
+    val horizontalPadding = if (configuration.screenWidthDp >= 600) 200.dp else 10.dp
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Centered box that mimics the iOS "modal" style
+    Box(modifier = Modifier.fillMaxSize().imePadding().padding(horizontal = horizontalPadding)) {
         Card(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .widthIn(max = 340.dp)
-                .padding(16.dp),
+            modifier = Modifier.align(Alignment.Center).fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 7.dp),
             border = BorderStroke(2.dp, Color(0xFF024873)),
@@ -51,7 +51,7 @@ fun CreateAccountScreen(appState: AppStateViewModel, usernameViewModel: Username
             ) {
                 // Title Text
                 Text(
-                    text = if (isLoginVisible) "Login" else "Create Account",
+                    text = if (accountViewModel.isLoginVisible.value) "Login" else "Create Account",
                     fontFamily = NexaScript,
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 32.sp,
@@ -61,11 +61,16 @@ fun CreateAccountScreen(appState: AppStateViewModel, usernameViewModel: Username
 
                 // Username TextField
                 OutlinedTextField(
-                    value = username,
-                    onValueChange = { username = it },
+                    value = accountViewModel.username.value,
+                    onValueChange = { accountViewModel.username.value = it },
                     label = { Text("Username", fontFamily = NexaScript,
                         fontWeight = FontWeight.Light, color = Color(0xFF022840)) },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        capitalization = KeyboardCapitalization.None,
+                        autoCorrect = false
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp),
@@ -83,14 +88,37 @@ fun CreateAccountScreen(appState: AppStateViewModel, usernameViewModel: Username
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                accountViewModel.isUsernameAvailable.value?.let { available ->
+                    Text(
+                        text = if (available) "✅ Username is available" else "❌ Username is taken. Please choose another.",
+                        color = if (available) Color.Green else Color.Red,
+                        fontSize = 12.sp
+                    )
+                }
+                if (accountViewModel.errorMessage.value.isNotEmpty()) {
+                    Text(
+                        text = accountViewModel.errorMessage.value,
+                        color = Color.Red,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 // Password TextField
                 OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
+                    value = accountViewModel.password.value,
+                    onValueChange = { accountViewModel.password.value = it },
                     label = { Text("Password", fontFamily = NexaScript,
                         fontWeight = FontWeight.Light, color = Color(0xFF022840)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        capitalization = KeyboardCapitalization.None,
+                        autoCorrect = false
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp),
@@ -109,9 +137,9 @@ fun CreateAccountScreen(appState: AppStateViewModel, usernameViewModel: Username
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Error message (if any)
-                if (errorMessage.isNotEmpty()) {
+                if (accountViewModel.errorMessage.value.isNotEmpty()) {
                     Text(
-                        text = errorMessage,
+                        text = accountViewModel.errorMessage.value,
                         fontFamily = NexaScript,
                         fontWeight = FontWeight.Light,
                         color = Color.Red,
@@ -126,10 +154,10 @@ fun CreateAccountScreen(appState: AppStateViewModel, usernameViewModel: Username
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     TextButton(
-                        onClick = { isLoginVisible = !isLoginVisible }
+                        onClick = { accountViewModel.toggleIsLoginVisible() }
                     ) {
                         Text(
-                            text = if (isLoginVisible) "Need an account?" else "Already have an account?",
+                            text = if (accountViewModel.isLoginVisible.value) "Need an account?" else "Already have an account?",
                             fontFamily = NexaScript,
                             fontWeight = FontWeight.Light,
                             fontSize = 16.sp,
@@ -137,109 +165,40 @@ fun CreateAccountScreen(appState: AppStateViewModel, usernameViewModel: Username
                         )
                     }
 
-                    if (isLoading) {
+                    if (accountViewModel.isLoading.value) {
                         CircularProgressIndicator(color = Color(0xFF024873))
                     } else {
-                        Button(
-                            onClick = {
-                                // Validate fields
-                                if (username.isBlank() || password.isBlank()) {
-                                    errorMessage = "Username and password cannot be empty"
-                                    return@Button
+                        if (accountViewModel.isLoginVisible.value) {
+                            Button(
+                                onClick = { accountViewModel.login() },
+                                colors = buttonColors(containerColor = Color(0xFF0A8CBF)),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(2.dp, Color(0xFF022840)),
+                            ) {
+//                                Text("Log In", color = Color.White, fontFamily = NexaScript, fontWeight = FontWeight.ExtraBold)
+                                if (accountViewModel.showSuccessMessage.value) {
+                                    Text("Logged In!!!", color = Color.White, fontFamily = NexaScript, fontWeight = FontWeight.ExtraBold)
+                                } else {
+                                    Text("Log In", color = Color.White, fontFamily = NexaScript, fontWeight = FontWeight.ExtraBold)
                                 }
-                                // Here you’d call your suspend functions to create an account or log in.
-                                // For demonstration, we simply mark the user as logged in.
-                                appState.username = username
-                                appState.isLoggedIn = true
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(2.dp, Color(0xFF022840)),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0A8CBF))
-                        ) {
-                            Text(
-                                text = if (isLoginVisible) "Log In" else "Create",
-                                fontFamily = NexaScript,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color.White
-                            )
+                            }
+                        } else {
+                            Button(
+                                onClick = { accountViewModel.createAccount() },
+                                colors = buttonColors(containerColor = Color(0xFF0A8CBF)),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(2.dp, Color(0xFF022840)),
+                            ) {
+                                if (accountViewModel.showSuccessMessage.value) {
+                                    Text("Created!!!", color = Color.Green, fontFamily = NexaScript, fontWeight = FontWeight.ExtraBold)
+                                } else {
+                                    Text("Create", color = Color.White, fontFamily = NexaScript, fontWeight = FontWeight.ExtraBold)
+                                }
+                            }
                         }
                     }
                 }
             }
         }
     }
-
-//    var username by remember { mutableStateOf("") }
-//    var password by remember { mutableStateOf("") }
-//    var errorMessage by remember { mutableStateOf("") }
-//    var isLoading by remember { mutableStateOf(false) }
-//    var isLoginVisible by remember { mutableStateOf(false) } // Toggle between login and create
-//
-//    Column(
-//        modifier = Modifier
-//            .fillMaxWidth()
-//            .padding(16.dp),
-//        horizontalAlignment = Alignment.CenterHorizontally
-//    ) {
-//        Text(
-//            text = if (isLoginVisible) "Login" else "Create Account",
-//            fontSize = 32.sp,
-//            color = Color(0xFF022840),
-//            modifier = Modifier.padding(vertical = 8.dp)
-//        )
-//        OutlinedTextField(
-//            value = username,
-//            onValueChange = { username = it },
-//            label = { Text("Username") },
-//            singleLine = true,
-//            modifier = Modifier.fillMaxWidth(),
-//            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
-//        )
-//        Spacer(modifier = Modifier.height(8.dp))
-//        OutlinedTextField(
-//            value = password,
-//            onValueChange = { password = it },
-//            label = { Text("Password") },
-//            singleLine = true,
-//            visualTransformation = PasswordVisualTransformation(),
-//            modifier = Modifier.fillMaxWidth(),
-//            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-//        )
-//        Spacer(modifier = Modifier.height(16.dp))
-//        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-//            TextButton(onClick = { isLoginVisible = !isLoginVisible }) {
-//                Text(
-//                    text = if (isLoginVisible) "Need an account?" else "Already have an account?",
-//                    fontSize = 16.sp,
-//                    color = Color(0xFF024873)
-//                )
-//            }
-//            if (isLoading) {
-//                CircularProgressIndicator(color = Color(0xFF024873))
-//            } else {
-//                Button(
-//                    onClick = {
-//                        // Validate fields
-//                        if (username.isBlank() || password.isBlank()) {
-//                            errorMessage = "Username and password cannot be empty"
-//                            return@Button
-//                        }
-//                        // Here you’d call your suspend functions to create an account or log in.
-//                        // For demonstration, we simply mark the user as logged in.
-//                        appState.username = username
-//                        appState.isLoggedIn = true
-//                    },
-//                    colors = buttonColors(containerColor = Color(0xFF0A8CBF)) // was previously backgroundColor, but it didn't exist. Looking into it!
-//                ) {
-//                    Text(
-//                        text = if (isLoginVisible) "Log In" else "Create",
-//                        color = Color.White
-//                    )
-//                }
-//            }
-//        }
-//        if (errorMessage.isNotEmpty()) {
-//            Text(text = errorMessage, color = Color.Red, modifier = Modifier.padding(top = 8.dp))
-//        }
-//    }
 }

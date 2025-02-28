@@ -9,12 +9,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.rememberNavController
 import io.winapps.journeyapp.accountlogin.CreateAccountScreen
 import io.winapps.journeyapp.maincontent.HomeScreen
+import io.winapps.journeyapp.repository.ApiRepository
+import io.winapps.journeyapp.services.ApiService
+import io.winapps.journeyapp.viewmodels.AccountViewModel
 
 @Composable
 fun MyJourneyApp(appState: AppStateViewModel = viewModel()) {
-    // Define the gradient colors (matching your Swift color values)
+    val navController = rememberNavController()
     val gradientColors = listOf(
         Color(0xFF022840),
         Color(0xFF024873),
