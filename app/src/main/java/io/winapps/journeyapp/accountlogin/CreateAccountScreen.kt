@@ -2,16 +2,12 @@ package io.winapps.journeyapp.accountlogin
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.material3.ButtonDefaults.buttonColors
-import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
@@ -20,20 +16,22 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.Composable
+import androidx.hilt.navigation.compose.hiltViewModel
 import io.winapps.journeyapp.AppStateViewModel
-import io.winapps.journeyapp.repository.ApiRepository
 import io.winapps.journeyapp.ui.theme.NexaScript
 import io.winapps.journeyapp.viewmodels.AccountViewModel
-import io.winapps.journeyapp.viewmodels.AccountViewModelFactory
+import io.winapps.journeyapp.viewmodels.CreateAccountState
+import io.winapps.journeyapp.viewmodels.LoginState
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CreateAccountScreen(appState: AppStateViewModel) {
-    val apiRepository = ApiRepository()
-    val accountViewModel: AccountViewModel = viewModel(
-        factory = AccountViewModelFactory(apiRepository)
-    )
+fun CreateAccountScreen(
+    onLoginSuccess: () -> Unit,
+) {
+    val appState = hiltViewModel<AppStateViewModel>()
+    val accountViewModel = hiltViewModel<AccountViewModel>()
+    val loginState = accountViewModel.loginState
+    val createAccountState = accountViewModel.createAccountState
     val configuration = LocalConfiguration.current
     val horizontalPadding = if (configuration.screenWidthDp >= 600) 200.dp else 10.dp
 
@@ -62,7 +60,7 @@ fun CreateAccountScreen(appState: AppStateViewModel) {
                 // Username TextField
                 OutlinedTextField(
                     value = accountViewModel.username.value,
-                    onValueChange = { accountViewModel.username.value = it },
+                    onValueChange = { accountViewModel.updateUsername(it) },
                     label = { Text("Username", fontFamily = NexaScript,
                         fontWeight = FontWeight.Light, color = Color(0xFF022840)) },
                     singleLine = true,
@@ -74,35 +72,40 @@ fun CreateAccountScreen(appState: AppStateViewModel) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp),
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        containerColor = Color.White,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
                         focusedTextColor = Color(0xFF022840),
                         unfocusedTextColor = Color(0xFF022840),
-                        focusedBorderColor = Color(0xFF024873),
-                        unfocusedBorderColor = Color(0xFF024873),
-                        cursorColor = Color(0xFF022840),
                         focusedLabelColor = Color(0xFF022840),
-                        unfocusedLabelColor = Color(0xFF022840)
+                        unfocusedLabelColor = Color(0xFF022840),
+                        cursorColor = Color(0xFF022840),
+
                     )
+//                        focusedBorderColor = Color(0xFF024873),
+//                        unfocusedBorderColor = Color(0xFF024873),
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                accountViewModel.isUsernameAvailable.value?.let { available ->
-                    Text(
-                        text = if (available) "✅ Username is available" else "❌ Username is taken. Please choose another.",
-                        color = if (available) Color.Green else Color.Red,
-                        fontSize = 12.sp
-                    )
+                if (!accountViewModel.isLoginVisible.value) {
+                    accountViewModel.isUsernameAvailable.value?.let { available ->
+                        Text(
+                            text = if (available) "✅ Username is available" else "❌ Username is taken. Please choose another.",
+                            color = if (available) Color.Green else Color.Red,
+                            fontSize = 12.sp
+                        )
+                    }
                 }
-                if (accountViewModel.errorMessage.value.isNotEmpty()) {
-                    Text(
-                        text = accountViewModel.errorMessage.value,
-                        color = Color.Red,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(horizontal = 8.dp)
-                    )
-                }
+
+//                if (accountViewModel.errorMessage.value.isNotEmpty()) {
+//                    Text(
+//                        text = accountViewModel.errorMessage.value,
+//                        color = Color.Red,
+//                        fontSize = 12.sp,
+//                        modifier = Modifier.padding(horizontal = 8.dp)
+//                    )
+//                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -122,12 +125,13 @@ fun CreateAccountScreen(appState: AppStateViewModel) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp),
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        containerColor = Color.White,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
                         focusedTextColor = Color(0xFF022840),
                         unfocusedTextColor = Color(0xFF022840),
-                        focusedBorderColor = Color(0xFF024873),
-                        unfocusedBorderColor = Color(0xFF024873),
+//                        focusedBorderColor = Color(0xFF024873),
+//                        unfocusedBorderColor = Color(0xFF024873),
                         cursorColor = Color(0xFF022840),
                         focusedLabelColor = Color(0xFF022840),
                         unfocusedLabelColor = Color(0xFF022840)
@@ -137,16 +141,16 @@ fun CreateAccountScreen(appState: AppStateViewModel) {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Error message (if any)
-                if (accountViewModel.errorMessage.value.isNotEmpty()) {
-                    Text(
-                        text = accountViewModel.errorMessage.value,
-                        fontFamily = NexaScript,
-                        fontWeight = FontWeight.Light,
-                        color = Color.Red,
-                        modifier = Modifier.padding(horizontal = 8.dp)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
+//                if (accountViewModel.errorMessage.value.isNotEmpty()) {
+//                    Text(
+//                        text = accountViewModel.errorMessage.value,
+//                        fontFamily = NexaScript,
+//                        fontWeight = FontWeight.Light,
+//                        color = Color.Red,
+//                        modifier = Modifier.padding(horizontal = 8.dp)
+//                    )
+//                    Spacer(modifier = Modifier.height(8.dp))
+//                }
 
                 // Bottom row with "toggle login" button and "create / login" button
                 Row(
@@ -181,6 +185,31 @@ fun CreateAccountScreen(appState: AppStateViewModel) {
                                 } else {
                                     Text("Log In", color = Color.White, fontFamily = NexaScript, fontWeight = FontWeight.ExtraBold)
                                 }
+
+                                when(loginState) {
+                                    is LoginState.Idle -> {
+                                        // do nothing
+                                    }
+                                    is LoginState.Loading -> {
+                                        // do nothing
+                                    }
+                                    is LoginState.Success -> {
+                                        val response = loginState.response
+
+                                        appState.setUserData(
+                                            userId = response.userId,
+                                            username = response.username,
+                                            apiKey = response.apiKey,
+                                            token = response.token
+                                        )
+//                                        accountViewModel.switchCurrentAppScreen(AppScreen.PROFILE)
+
+                                        onLoginSuccess()
+                                    }
+                                    is LoginState.Error -> {
+                                        // TODO: add logic here for handling the error
+                                    }
+                                }
                             }
                         } else {
                             Button(
@@ -193,6 +222,21 @@ fun CreateAccountScreen(appState: AppStateViewModel) {
                                     Text("Created!!!", color = Color.Green, fontFamily = NexaScript, fontWeight = FontWeight.ExtraBold)
                                 } else {
                                     Text("Create", color = Color.White, fontFamily = NexaScript, fontWeight = FontWeight.ExtraBold)
+                                }
+
+                                when(createAccountState) {
+                                    is CreateAccountState.Idle -> {
+                                        // do nothing
+                                    }
+                                    is CreateAccountState.Loading -> {
+                                        // do nothing
+                                    }
+                                    is CreateAccountState.Success -> {
+                                        onLoginSuccess()
+                                    }
+                                    is CreateAccountState.Error -> {
+                                        // TODO: add logic here for handling the error
+                                    }
                                 }
                             }
                         }
